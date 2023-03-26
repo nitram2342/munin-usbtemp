@@ -1,0 +1,196 @@
+#!/usr/bin/env python3
+#
+# This is a Munin plugin for the USBTEMP.com temperture sensors
+# developed by Martin Schobert <martin@weltregierung.de>.
+#
+# The code is based on the usbtemp-python3 module which was published
+# by Jaka at https://github.com/usbtemp/usbtemp-python3.
+#
+# Install dependencies:
+#
+#   apt install python3-serial
+#
+# Make customizations in /etc/munin/plugin-conf.d/munin-node:
+#
+#   [usbtemp]
+#   #user root
+#   env.usbtemp_label_287902e50c0000e0 Rack temperature upper part
+#   env.usbtemp_label_2833afe50c000085 Rack temperature bottom part
+#   env.usbtemp_dev_pattern /dev/ttyUSB*
+#
+#
+# MIT License
+#
+# Copyright (c) 2023 Martin Schobert
+# Copyright (c) 2018 usbtemp.com
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+import serial
+import struct
+import time
+import os
+import sys
+import glob
+
+class Thermometer:
+
+    def __init__(self, port, timeout = 1):
+        self.port = port;
+        self.timeout = timeout;
+        self.uart = None
+
+    def Open(self):
+       if not self.uart or not self.uart.isOpen():
+            self.uart = serial.Serial(self.port, timeout = self.timeout);
+
+    def Close(self):
+       if self.uart and self.uart.isOpen():
+            self.uart.close()
+            self.uart = None
+
+    def Rom(self):
+        self._owReset();
+        self._owWrite(0x33)
+        data = self._readBytes(8)
+        if (self._crc8(data[0:7]) != data[7]):
+            raise Exception('CRC error')
+        return data.hex()
+
+    def Temperature(self):
+        self._owReset();
+        self._owWrite(0xcc)
+        self._owWrite(0x44)
+        time.sleep(1)
+        self._owReset();
+        self._owWrite(0xcc)
+        self._owWrite(0xbe)
+        scratchpad = self._readBytes(9)
+        if (self._crc8(scratchpad[0:8]) != scratchpad[8]):
+            raise Exception('CRC error')
+        temp = struct.unpack('<h', scratchpad[0:2])[0]
+        return float(temp) / 16.0
+
+    def _clear(self):
+        self.uart.reset_input_buffer()
+        self.uart.reset_output_buffer()
+
+    def _owReset(self):
+        if not self.uart or not self.uart.isOpen():
+            raise Exception('Device is not connected')
+        self._clear()
+        self.uart.baudrate = 9600
+        self.uart.write(b'\xf0')
+        r = self.uart.read(1)
+        self.uart.baudrate = 115200
+        if len(r) != 1:
+            raise Exception('Read/Write error')
+        d = r[0]
+        if d == 0xf0:
+            raise Exception('No device present')
+        elif d == 0x00:
+            raise Exception('Short circuit');
+        elif 0x10 <= d <= 0xe0:
+            return
+        else:
+            raise Exception('Presence error: 0x%02x' % d)
+
+    def _owWriteByte(self, byte):
+        if not self.uart or not self.uart.isOpen():
+            raise Exception('Device is not connected')
+        w = []
+        for i in range(8):
+            w.append(0xff if byte & 0x01 else 0x00)
+            byte >>= 1
+        self._clear()
+        self.uart.write(bytes(w))
+        r = self.uart.read(8)
+        if len(r) != 8:
+            raise Exception('Write error')
+        value = 0
+        for b in iter(r):
+            value >>= 1
+            if b == 0xff:
+                value |= 0x80
+        return value
+
+    def _owWrite(self, byte):
+        b = self._owWriteByte(byte)
+        if b != byte:
+            raise Exception('Invalid response')
+
+    def _owRead(self):
+        return self._owWriteByte(0xff)
+
+    def _readBytes(self, n):
+        return bytes([self._owRead() for i in range(n)])
+
+    def _crc8(self, data):
+        crc = 0
+        for byte in iter(data):
+            for i in range(8):
+                mix = (crc ^ byte) & 0x01
+                crc >>= 1
+                if mix:
+                    crc ^= 0x8c
+                byte >>= 1
+        return crc
+
+def configure(usbtemp_rom_id):
+
+    main_title = os.environ.get(f"usbtemp_main_title", "USBTEMP sensor")
+
+    print(f"graph_title Temperature - {main_title}")
+    print("graph_args --base 1000 -l 0")
+    print("graph_vlabel Temperature [°C]") # main y axis label
+    print("graph_scale no")    
+    print("graph_category sensors")
+
+    label = os.environ.get(f"usbtemp_label_{usbtemp_rom_id}", f"Sensor {usbtemp_rom_id}")
+    
+    print(f"temperature_{usbtemp_rom_id}.label {label}")
+    print(f"temperature_{usbtemp_rom_id}.warning 35")
+    print(f"temperature_{usbtemp_rom_id}.critical 45")
+    
+    
+def main():
+
+    for device_name in glob.glob(os.environ.get("usbtemp_dev_pattern", "/dev/ttyUSB*")):
+        #print(f"+ Opening {device_name}.", file=sys.stderr)
+        try:
+            thermometer = Thermometer(device_name)
+            thermometer.Open()
+    
+            usbtemp_rom_id = thermometer.Rom()
+            if len(sys.argv) > 1 and sys.argv[1] == "config":
+                configure(usbtemp_rom_id)
+
+            else:
+                try:
+                    print(f"temperature_{usbtemp_rom_id}.value %0.2f" % thermometer.Temperature())                
+                except Exception as e:
+                    print(e)
+
+            thermometer.Close()
+        except Exception as e2:
+            print(e2)
+            pass
+        
+if __name__ == '__main__':
+    main()
