@@ -14,7 +14,6 @@ Running multiple sensors in parallel is supported. Each sensor has a ROM code ID
 This munin plugin requires `python3-serial`. Ot should be available via the OS package management:
 
 ```
-
 	apt install python3-serial
 ```
 
