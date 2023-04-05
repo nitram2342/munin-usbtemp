@@ -4,7 +4,7 @@
 This is a [Munin](http://munin-monitoring.org/) plugin for [USBTEMP.com](https://usbtemp.com/) temperture sensors. These are
 DS18B20 1-wire sensors, basically attached
 to a Prolific USB serial. The munin plugin code for handling the USBTEMP sensor is based on the
-[usbtemp-python3](https://github.com/usbtemp/usbtemp-python3) module which was developed by Jaka. The original
+[usbtemp-python3](https://github.com/usbtemp/usbtemp-python3) module which was developed by @Jaka. The original
 code has been used to derive a Munin plugin.
 
 Running multiple sensors in parallel is supported. Each sensor has a ROM code ID to identify the sensor.
