@@ -8,13 +8,13 @@ to a Prolific USB serial. The munin plugin code for handling the USBTEMP sensor 
 code has been used to derive a Munin plugin.
 
 Running multiple sensors in parallel is supported. Each sensor has a ROM code ID to identify the sensor.
-
+![Example diagram](example_diagram.png)
 # Install dependencies
 
 This munin plugin requires `python3-serial`. Ot should be available via the OS package management:
 
 ```
-	apt install python3-serial
+apt install python3-serial
 ```
 
 # Install plugin
@@ -22,7 +22,7 @@ This munin plugin requires `python3-serial`. Ot should be available via the OS p
 To install the plugin, just put it into munin's plugin directory, usually under `/etc/munin/plugins`. Restart `munin-node`:
 
 ```
-	systemctl restart munin-node
+systemctl restart munin-node
 ```
 
 # Configuration
@@ -30,19 +30,19 @@ To install the plugin, just put it into munin's plugin directory, usually under 
 You may want to make customizations in `/etc/munin/plugin-conf.d/munin-node` configuration file, for example:
 
 ```
-	[usbtemp]
-	#user root
-	env.usbtemp_label_287902e50c0000e0 Rack temperature upper part
-	env.usbtemp_label_2833afe50c000085 Rack temperature bottom part
-	env.usbtemp_dev_pattern /dev/ttyUSB*
+[usbtemp]
+#user root
+env.usbtemp_label_287902e50c0000e0 Rack temperature upper part
+env.usbtemp_label_2833afe50c000085 Rack temperature bottom part
+env.usbtemp_dev_pattern /dev/ttyUSB*
 ```
 
 The hexdigit-part refers to a sensor's ROM code ID. You get the available sensor IDs by running:
 
 ```
-	# usbtemp_dev_pattern="/dev/ttyUSB*" /etc/munin/plugins/usbtemp
-	temperature_287902e50c0000e0.value 23.00
-	temperature_2833afe50c000085.value 23.81
+# usbtemp_dev_pattern="/dev/ttyUSB*" /etc/munin/plugins/usbtemp
+temperature_287902e50c0000e0.value 23.00
+temperature_2833afe50c000085.value 23.81
 ```
 
 # Testing and debugging
