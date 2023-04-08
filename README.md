@@ -1,7 +1,7 @@
 
 # Munin plugin for USBTEMP.com temperature sensors
 
-This is a [Munin](http://munin-monitoring.org/) plugin for [USBTEMP.com](https://usbtemp.com/) temperture sensors. These are
+This is a [Munin](http://munin-monitoring.org/) plugin for [USBTEMP.com](https://usbtemp.com/) temperature sensors. These are
 DS18B20 1-wire sensors, basically attached
 to a Prolific USB serial. The munin plugin code for handling the USBTEMP sensor is based on the
 [usbtemp-python3](https://github.com/usbtemp/usbtemp-python3) module which was developed by Jaka. The original
@@ -11,7 +11,8 @@ Running multiple sensors in parallel is supported. Each sensor has a ROM code ID
 ![Example diagram](example_diagram.png)
 # Install dependencies
 
-This munin plugin requires `python3-serial`. Ot should be available via the OS package management:
+This munin plugin requires `python3-serial`. Or shodescription
+uld be available via the OS package management:
 
 ```
 apt install python3-serial
@@ -49,7 +50,7 @@ temperature_2833afe50c000085.value 23.81
 
 1. Check if USB temperature sensors are attached using `lsusb` and `ls -l /dev/ttyUSB*`.
 
-2. Run the /etc/munin/plugins/usbtemp directlywith elevated privileges.
+2. Run the /etc/munin/plugins/usbtemp directly with elevated privileges.
 
 3. Connect to `localhost:4949`, enter `list` and check the output for `usbtemp`. Enter `fetch usbtemp` and check if it works.
 
